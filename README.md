@@ -7,7 +7,7 @@
 
 <sub>Don't forget to leave a ⭐ for this repository if you visit. Thank you so much ♥️</sub>
 
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/rukamori/canary/daily-nightly-build.yml?branch=main&style=for-the-badge&logo=github&label=Status&labelColor=1e1e2e)](https://github.com/rukamori/canary/actions/workflows/daily-nightly-build.yml)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/rukamori/canary/build.yml?branch=main&style=for-the-badge&logo=github&label=Status&labelColor=1e1e2e)](https://github.com/rukamori/canary/actions/workflows/build.yml)
 [![GitHub Stars](https://img.shields.io/github/stars/rukamori/canary?style=for-the-badge&color=6366f1&labelColor=1e1e2e&logo=github)](https://github.com/rukamori/canary)
 [![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads/rukamori/canary/total?style=for-the-badge&label=DOWNLOAD%20COUNT&labelColor=1e1e2e&color=ff00ff&logo=downdetector)](https://github.com/rukamori/canary/releases)
 [![GitHub Release](https://img.shields.io/github/v/release/rukamori/canary?display_name=release&style=for-the-badge&label=LATEST%20RELEASE&logo=Github&color=000fa0&labelColor=1e1e2e)](https://github.com/rukamori/canary/releases/latest)
@@ -25,7 +25,7 @@
 
 | Stable | Nightly |
 |----------|---------|
-| <div align="center"> [![Stable build](https://img.shields.io/github/actions/workflow/status/ArchiveTuneApp/ArchiveTune/release.yml?labelColor=27303D&label=Stable&labelColor=06599d&color=043b69)](https://github.com/ArchiveTuneApp/ArchiveTune/actions/workflows/release.yml) <br> [![GitHub downloads](https://img.shields.io/github/downloads/ArchiveTuneApp/ArchiveTune/latest/total?label=Latest%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/ArchiveTuneApp/ArchiveTune/releases/latest) [![GitHub downloads](https://img.shields.io/github/downloads/ArchiveTuneApp/ArchiveTune/total?label=Total%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/ArchiveTuneApp/ArchiveTune/releases) </div> | <div align="center"> [![Nightly build](https://img.shields.io/github/actions/workflow/status/rukamori/canary/daily-nightly-build.yml?labelColor=27303D&label=Nightly&labelColor=2c2c47&color=1c1c39)](https://github.com/rukamori/canary/actions/workflows/daily-nightly-build.yml) <br> [![GitHub downloads](https://img.shields.io/github/downloads/rukamori/canary/latest/total?label=Latest%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/rukamori/canary/releases/latest) [![GitHub downloads](https://img.shields.io/github/downloads/rukamori/canary/total?label=Total%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/rukamori/canary/releases) </div> |
+| <div align="center"> [![Stable build](https://img.shields.io/github/actions/workflow/status/ArchiveTuneApp/ArchiveTune/release.yml?labelColor=27303D&label=Stable&labelColor=06599d&color=043b69)](https://github.com/ArchiveTuneApp/ArchiveTune/actions/workflows/release.yml) <br> [![GitHub downloads](https://img.shields.io/github/downloads/ArchiveTuneApp/ArchiveTune/latest/total?label=Latest%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/ArchiveTuneApp/ArchiveTune/releases/latest) [![GitHub downloads](https://img.shields.io/github/downloads/ArchiveTuneApp/ArchiveTune/total?label=Total%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/ArchiveTuneApp/ArchiveTune/releases) </div> | <div align="center"> [![Nightly build](https://img.shields.io/github/actions/workflow/status/rukamori/canary/build.yml?labelColor=27303D&label=Nightly&labelColor=2c2c47&color=1c1c39)](https://github.com/rukamori/canary/actions/workflows/build.yml) <br> [![GitHub downloads](https://img.shields.io/github/downloads/rukamori/canary/latest/total?label=Latest%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/rukamori/canary/releases/latest) [![GitHub downloads](https://img.shields.io/github/downloads/rukamori/canary/total?label=Total%20Downloads&labelColor=27303D&color=0D1117&logo=github&logoColor=FFFFFF&style=flat)](https://github.com/rukamori/canary/releases) </div> |
 
 </div>
 
@@ -38,7 +38,7 @@
 
 </div>
 
-- For nightly builds, see `.github/workflows/nightly-build.yml`
+- For nightly builds, see `.github/workflows/build.yml`
 
 <div align="center">
 
@@ -108,7 +108,7 @@ Anything you want
 
 **URL:**
 ```
-https://api.github.com/repos/${{ github.repository }}/actions/workflows/trigger.yml/dispatches
+https://api.github.com/repos/${{ github.repository }}/actions/workflows/build.yml/dispatches
 ```
 `${{ github.repository }}` is `your-username/your-repo-name` so change it to your name and repository name.
 
