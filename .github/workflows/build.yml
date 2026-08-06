@@ -1,0 +1,168 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check-updates.outputs.has_changes }}
+    steps:
+      - name: Check for updates
+        id: check-updates
+        run: |
+          last_run=$(curl -s "https://api.github.com/repos/${{ github.repository }}/actions/workflows/build.yml/runs?status=completed&per_page=1" | jq -r '.workflow_runs[0].created_at')
+
+          app_updated=$(curl -s "https://api.github.com/repos/rukamori/ArchiveTune/commits?sha=dev&since=$last_run" | jq '. | length')
+          core_updated=$(curl -s "https://api.github.com/repos/rukamori/core/commits?since=$last_run" | jq '. | length')
+          lyrics_updated=$(curl -s "https://api.github.com/repos/rukamori/lyrics/commits?since=$last_run" | jq '. | length')
+          iconpack_updated=$(curl -s "https://api.github.com/repos/rukamori/IconPack/commits?since=$last_run" | jq '. | length')
+          extractor_updated=$(curl -s "https://api.github.com/repos/rukamori/moriextractor/commits?since=$last_run" | jq '. | length')
+          deobfuscator_updated=$(curl -s "https://api.github.com/repos/rukamori/morideobfuscator/commits?since=$last_run" | jq '. | length')
+
+          if [ "$app_updated" -gt "0" ] || [ "$core_updated" -gt "0" ] || [ "$lyrics_updated" -gt "0" ] || [ "$iconpack_updated" -gt "0" ] || [ "$extractor_updated" -gt "0" ] || [ "$deobfuscator_updated" -gt "0" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          repository: rukamori/ArchiveTune
+          ref: dev
+          token: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
+          submodules: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Grant permissions
+        run: chmod a+x gradlew
+
+      - name: Generate build number
+        id: tagger
+        run: |
+          echo "new_tag=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+          echo "formatted_date=$(date +'%Y/%m/%d')" >> $GITHUB_OUTPUT
+
+      - name: Prepare nightly build
+        run: |
+          sed -i 's/versionName = ".*"/versionName = "N'"$(date +%Y%m%d)"'"/' app/build.gradle.kts
+          sed -i 's/versionCode = [0-9]*/versionCode = '"${GITHUB_RUN_NUMBER}"'/' app/build.gradle.kts
+          sed -i 's/applicationId = "moe.rukamori.archivetune"/applicationId = "moe.rukamori.archivetune.nightly"/' app/build.gradle.kts
+          sed -i 's/ArchiveTune Debug/ArchiveTune Nightly Debug/' app/src/debug/res/values/app_name.xml
+          sed -i 's/ArchiveTune/ArchiveTune Nightly/' app/src/main/res/values/app_name.xml
+          find app/src/main/res -path '*/values-*/app_name.xml' -exec sed -i 's/ArchiveTune/ArchiveTune Nightly/' {} +
+          sed -i 's/defaultValue = UpdateChannel.STABLE/defaultValue = UpdateChannel.DAILY_NIGHTLY/' app/src/main/kotlin/moe/rukamori/archivetune/ui/screens/settings/UpdateScreen.kt
+
+      - name: Build APK
+        run: ./gradlew assembleGmsMobileUniversalRelease
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          TOGETHER_BEARER_TOKEN: ${{ secrets.TOGETHER_BEARER_TOKEN }}
+          CANVAS_BEARER_TOKEN: ${{ secrets.CANVAS_BEARER_TOKEN }}
+          EXTRACTOR_BEARER: ${{ secrets.EXTRACTOR_BEARER }}
+
+      - name: Sign APK
+        uses: ilharp/sign-android-release@v2.0.0
+        id: sign_app
+        with:
+          releaseDir: app/build/outputs/apk/gmsMobileUniversal/release
+          signingKey: ${{ secrets.SIGNING_KEY_BASE64 }}
+          keyAlias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+          buildToolsVersion: 35.0.0
+
+      - name: Get changelog
+        id: changelog
+        run: |
+          curl -o commit.py -L https://raw.githubusercontent.com/${{ github.repository }}/main/.github/assets/commit.py
+          python3 commit.py
+          CHANGELOG=$(cat commits.txt)
+          {
+            echo "content<<EOF"
+            echo "$CHANGELOG"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: N${{ steps.tagger.outputs.new_tag }}
+          name: "N${{ steps.tagger.outputs.new_tag }}"
+          body: |
+            Automated nightly build generated on ${{ steps.tagger.outputs.formatted_date }}
+
+            ${{ steps.changelog.outputs.content }}
+          files: ${{ steps.sign_app.outputs.signedFile }}
+          prerelease: false
+
+      - name: Send Discord notification
+        run: |
+          VERSION="N${{ steps.tagger.outputs.new_tag }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/$VERSION"
+          MENTION_ROLE="${{ secrets.DISCORD_MENTION_ROLE }}"
+
+          MESSAGE="# New daily version of __ArchiveTune Nightly__ has been released.
+
+          > - Ohaiyo, **ArchiveTune $VERSION** has been released. You can view changelog and download inside **ArchiveTune Nightly** app or with this link below.
+          > - **Link:** $RELEASE_URL
+          > - **Mention:** $MENTION_ROLE"
+
+          PAYLOAD=$(jq -n --arg msg "$MESSAGE" '{content: $msg}')
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -H "Content-Type: application/json" -d "$PAYLOAD" "${{ secrets.WEBHOOK_URL }}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+          if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Discord notification sent successfully"
+          else
+            echo "❌ Failed to send Discord notification (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+
+      - name: Checkout repo for README update
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          token: ${{ github.token }}
+          clean: false
+
+      - name: Update version counters
+        run: |
+          VERSION="${{ steps.tagger.outputs.new_tag }}"
+          COUNTER_LINKS=""
+          for (( i=0; i<${#VERSION}; i++ )); do
+            DIGIT="${VERSION:$i:1}"
+            COUNTER_LINKS+="[![Download](https://rule34.xxx/counter/$DIGIT.gif)](https://github.com/${{ github.repository }}/releases/latest) "
+          done
+          sed -i "s|\[!\[Download\](https://rule34.xxx/counter/[0-9]*.gif).*\](https://github.com/[^)]*)|[![Download](https://rule34.xxx/counter/${DIGIT}.gif)](https://github.com/${{ github.repository }}/releases/latest)|g" README.md || true
+
+      - name: Commit and push
+        run: |
+          git config --local user.email "bot@rukamori.app"
+          git config --local user.name "rukamori-bot"
+          if [[ -n $(git status -s) ]]; then
+            git add README.md
+            git commit -m "ci: Bump version counter to N${{ steps.tagger.outputs.new_tag }}"
+            git push origin main
+          else
+            echo "No changes to push!"
+          fi
