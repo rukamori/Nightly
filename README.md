@@ -21,7 +21,7 @@
 
 <div align="center">
 
-[![Download](https://rule34.xxx/counter/2.gif)](https://github.com/rukamori/canary/releases/latest) [![Download](https://rule34.xxx/counter/0.gif)](https://github.com/rukamori/canary/releases/latest) [![Download](https://rule34.xxx/counter/2.gif)](https://github.com/rukamori/canary/releases/latest) [![Download](https://rule34.xxx/counter/6.gif)](https://github.com/rukamori/canary/releases/latest) [![Download](https://rule34.xxx/counter/0.gif)](https://github.com/rukamori/canary/releases/latest) [![Download](https://rule34.xxx/counter/7.gif)](https://github.com/rukamori/canary/releases/latest) [![Download](https://rule34.xxx/counter/2.gif)](https://github.com/rukamori/canary/releases/latest) [![Download](https://rule34.xxx/counter/4.gif)](https://github.com/rukamori/canary/releases/latest)
+[![Download](https://rule34.xxx/counter/9.gif)](https://github.com/rukamori/canary/releases/latest)
 
 | Stable | Nightly |
 |----------|---------|
