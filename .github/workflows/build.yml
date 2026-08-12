@@ -90,6 +90,11 @@ jobs:
           keyPassword: ${{ secrets.KEY_PASSWORD }}
           buildToolsVersion: 35.0.0
 
+      - name: Rename signed APK
+        run: |
+          SIGNED_FILE="${{ steps.sign_app.outputs.signedFile }}"
+          mv "$SIGNED_FILE" "$(dirname "$SIGNED_FILE")/app-gms-mobile-universal-nightly.apk"
+
       - name: Get changelog
         id: changelog
         run: |
@@ -111,7 +116,7 @@ jobs:
             Automated nightly build generated on ${{ steps.tagger.outputs.formatted_date }}
 
             ${{ steps.changelog.outputs.content }}
-          files: ${{ steps.sign_app.outputs.signedFile }}
+          files: app/build/outputs/apk/gmsMobileUniversal/release/app-gms-mobile-universal-nightly.apk
           prerelease: false
 
       - name: Send Discord notification
