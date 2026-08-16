@@ -21,7 +21,7 @@
 
 <div align="center">
 
-[![Download](https://rule34.xxx/counter/4.gif)](https://github.com/rukamori/canary/releases/latest)
+[![Download](https://rule34.xxx/counter/6.gif)](https://github.com/rukamori/canary/releases/latest)
 
 | Stable | Nightly |
 |----------|---------|
