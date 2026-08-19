@@ -16,7 +16,7 @@ jobs:
         run: |
           last_run=$(curl -s "https://api.github.com/repos/${{ github.repository }}/actions/workflows/build.yml/runs?status=completed&per_page=1" | jq -r '.workflow_runs[0].created_at')
 
-          app_updated=$(curl -s "https://api.github.com/repos/rukamori/ArchiveTune/commits?sha=dev&since=$last_run" | jq '. | length')
+          app_updated=$(curl -s "https://api.github.com/repos/sang765/AT/commits?sha=dev&since=$last_run" | jq '. | length')
           core_updated=$(curl -s "https://api.github.com/repos/rukamori/core/commits?since=$last_run" | jq '. | length')
           lyrics_updated=$(curl -s "https://api.github.com/repos/rukamori/lyrics/commits?since=$last_run" | jq '. | length')
           iconpack_updated=$(curl -s "https://api.github.com/repos/rukamori/IconPack/commits?since=$last_run" | jq '. | length')
@@ -39,7 +39,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          repository: rukamori/ArchiveTune
+          repository: sang765/AT
           ref: dev
           token: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
           submodules: true
@@ -64,14 +64,12 @@ jobs:
         run: |
           sed -i 's/versionName = ".*"/versionName = "N'"$(date +%Y%m%d)"'"/' app/build.gradle.kts
           sed -i 's/versionCode = [0-9]*/versionCode = '"${GITHUB_RUN_NUMBER}"'/' app/build.gradle.kts
-          sed -i 's/applicationId = "moe.rukamori.archivetune"/applicationId = "moe.rukamori.archivetune.nightly"/' app/build.gradle.kts
-          sed -i 's/ArchiveTune Debug/ArchiveTune Nightly Debug/' app/src/debug/res/values/app_name.xml
           sed -i 's/ArchiveTune/ArchiveTune Nightly/' app/src/main/res/values/app_name.xml
           find app/src/main/res -path '*/values-*/app_name.xml' -exec sed -i 's/ArchiveTune/ArchiveTune Nightly/' {} +
           sed -i 's/defaultValue = UpdateChannel.STABLE/defaultValue = UpdateChannel.DAILY_NIGHTLY/' app/src/main/kotlin/moe/rukamori/archivetune/ui/screens/settings/UpdateScreen.kt
 
       - name: Build APK
-        run: ./gradlew assembleGmsMobileUniversalRelease
+        run: ./gradlew assembleGmsMobileUniversalNightly
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
@@ -83,7 +81,7 @@ jobs:
         uses: ilharp/sign-android-release@v2.0.0
         id: sign_app
         with:
-          releaseDir: app/build/outputs/apk/gmsMobileUniversal/release
+          releaseDir: app/build/outputs/apk/gmsMobileUniversal/nightly
           signingKey: ${{ secrets.SIGNING_KEY_BASE64 }}
           keyAlias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}

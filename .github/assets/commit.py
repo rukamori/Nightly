@@ -5,7 +5,7 @@ time = datetime.now() - timedelta(days=1)
 time_format = time.isoformat() + 'Z'
 
 repos = [
-    {'owner': 'rukamori', 'name': 'ArchiveTune', 'branch': 'dev', 'label': 'App'},
+    {'owner': 'sang765', 'name': 'AT', 'branch': 'dev', 'label': 'App'},
     {'owner': 'rukamori', 'name': 'core', 'branch': 'main', 'label': 'Core'},
     {'owner': 'rukamori', 'name': 'lyrics', 'branch': 'main', 'label': 'Lyrics'},
     {'owner': 'rukamori', 'name': 'IconPack', 'branch': 'main', 'label': 'Icon Pack'},
