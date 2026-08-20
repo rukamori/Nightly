@@ -86,6 +86,12 @@ jobs:
           SIGNED_FILE="${{ steps.sign_app.outputs.signedFile }}"
           mv "$SIGNED_FILE" "$(dirname "$SIGNED_FILE")/app-gms-mobile-universal-nightly.apk"
 
+      - name: Verify signed APK
+        run: |
+          APK="app/build/outputs/apk/gmsMobileUniversal/nightly/app-gms-mobile-universal-nightly.apk"
+          test -s "$APK"
+          ls -lh "$APK"
+
       - name: Get changelog
         id: changelog
         run: |
@@ -107,7 +113,7 @@ jobs:
             Automated nightly build generated on ${{ steps.tagger.outputs.formatted_date }}
 
             ${{ steps.changelog.outputs.content }}
-          files: app/build/outputs/apk/gmsMobileUniversal/release/app-gms-mobile-universal-nightly.apk
+          files: app/build/outputs/apk/gmsMobileUniversal/nightly/app-gms-mobile-universal-nightly.apk
           prerelease: false
 
       - name: Send Discord notification
