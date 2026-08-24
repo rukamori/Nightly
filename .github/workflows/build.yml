@@ -44,28 +44,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - abi: arm64
-            gradle_task: assembleGmsMobileArm64Nightly
-            apk_dir: gmsMobileArm64
-            apk_name: app-gms-mobile-arm64-nightly.apk
-          - abi: armeabi
-            gradle_task: assembleGmsMobileArmeabiNightly
-            apk_dir: gmsMobileArmeabi
-            apk_name: app-gms-mobile-armeabi-nightly.apk
-          - abi: x86
-            gradle_task: assembleGmsMobileX86Nightly
-            apk_dir: gmsMobileX86
-            apk_name: app-gms-mobile-x86-nightly.apk
-          - abi: x86_64
-            gradle_task: assembleGmsMobileX8664Nightly
-            apk_dir: gmsMobileX8664
-            apk_name: app-gms-mobile-x86_64-nightly.apk
-          - abi: universal
-            gradle_task: assembleGmsMobileUniversalNightly
-            apk_dir: gmsMobileUniversal
-            apk_name: app-gms-mobile-universal-nightly.apk
+        dist: [gms, foss]
+        device: [Mobile, Tv]
+        abi: [Arm64, Armeabi, X86, X8664, Universal]
     steps:
+      - name: Compute build parameters
+        id: params
+        run: |
+          DIST="${{ matrix.dist }}"
+          DEVICE="${{ matrix.device }}"
+          ABI="${{ matrix.abi }}"
+
+          DIST_LOWER=$(echo "$DIST" | tr '[:upper:]' '[:lower:]')
+          DEVICE_LOWER=$(echo "$DEVICE" | tr '[:upper:]' '[:lower:]')
+          ABI_LOWER=$(echo "$ABI" | tr '[:upper:]' '[:lower:]')
+
+          echo "gradle_task=assemble${DIST}${DEVICE}${ABI}Nightly" >> $GITHUB_OUTPUT
+          echo "apk_dir=${DIST_LOWER}${DEVICE_LOWER}${ABI}" >> $GITHUB_OUTPUT
+          echo "apk_name=app-${DIST_LOWER}-${DEVICE_LOWER}-${ABI_LOWER}-nightly.apk" >> $GITHUB_OUTPUT
+          echo "artifact_name=apk-${DIST_LOWER}-${DEVICE_LOWER}-${ABI_LOWER}" >> $GITHUB_OUTPUT
+
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
@@ -84,8 +82,8 @@ jobs:
       - name: Grant permissions
         run: chmod a+x gradlew
 
-      - name: Build APK (${{ matrix.abi }})
-        run: ./gradlew ${{ matrix.gradle_task }} -PnightlyVersionName=N${{ needs.check.outputs.new_tag }}
+      - name: Build APK (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
+        run: ./gradlew ${{ steps.params.outputs.gradle_task }} -PnightlyVersionName=N${{ needs.check.outputs.new_tag }}
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
@@ -93,33 +91,33 @@ jobs:
           CANVAS_BEARER_TOKEN: ${{ secrets.CANVAS_BEARER_TOKEN }}
           EXTRACTOR_BEARER: ${{ secrets.EXTRACTOR_BEARER }}
 
-      - name: Sign APK (${{ matrix.abi }})
+      - name: Sign APK (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
         uses: ilharp/sign-android-release@v2.0.0
         id: sign_app
         with:
-          releaseDir: app/build/outputs/apk/${{ matrix.apk_dir }}/nightly
+          releaseDir: app/build/outputs/apk/${{ steps.params.outputs.apk_dir }}/nightly
           signingKey: ${{ secrets.SIGNING_KEY_BASE64 }}
           keyAlias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
           buildToolsVersion: 35.0.0
 
-      - name: Rename signed APK (${{ matrix.abi }})
+      - name: Rename signed APK (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
         run: |
           SIGNED_FILE="${{ steps.sign_app.outputs.signedFile }}"
-          mv "$SIGNED_FILE" "$(dirname "$SIGNED_FILE")/${{ matrix.apk_name }}"
+          mv "$SIGNED_FILE" "$(dirname "$SIGNED_FILE")/${{ steps.params.outputs.apk_name }}"
 
-      - name: Verify signed APK (${{ matrix.abi }})
+      - name: Verify signed APK (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
         run: |
-          APK="app/build/outputs/apk/${{ matrix.apk_dir }}/nightly/${{ matrix.apk_name }}"
+          APK="app/build/outputs/apk/${{ steps.params.outputs.apk_dir }}/nightly/${{ steps.params.outputs.apk_name }}"
           test -s "$APK"
           ls -lh "$APK"
 
-      - name: Upload APK artifact (${{ matrix.abi }})
+      - name: Upload APK artifact (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
         uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ matrix.abi }}
-          path: app/build/outputs/apk/${{ matrix.apk_dir }}/nightly/${{ matrix.apk_name }}
+          name: ${{ steps.params.outputs.artifact_name }}
+          path: app/build/outputs/apk/${{ steps.params.outputs.apk_dir }}/nightly/${{ steps.params.outputs.apk_name }}
           retention-days: 1
 
   release:
