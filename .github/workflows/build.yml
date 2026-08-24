@@ -44,9 +44,47 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dist: [gms, foss]
-        device: [Mobile, Tv]
-        abi: [Arm64, Armeabi, X86, X8664, Universal]
+        include:
+          # GMS Mobile - all ABIs
+          - dist: gms
+            device: Mobile
+            abi: Arm64
+          - dist: gms
+            device: Mobile
+            abi: Armeabi
+          - dist: gms
+            device: Mobile
+            abi: X86
+          - dist: gms
+            device: Mobile
+            abi: X8664
+          - dist: gms
+            device: Mobile
+            abi: Universal
+          # GMS Tv - universal only
+          - dist: gms
+            device: Tv
+            abi: Universal
+          # FOSS Mobile - all ABIs
+          - dist: foss
+            device: Mobile
+            abi: Arm64
+          - dist: foss
+            device: Mobile
+            abi: Armeabi
+          - dist: foss
+            device: Mobile
+            abi: X86
+          - dist: foss
+            device: Mobile
+            abi: X8664
+          - dist: foss
+            device: Mobile
+            abi: Universal
+          # FOSS Tv - universal only
+          - dist: foss
+            device: Tv
+            abi: Universal
     steps:
       - name: Compute build parameters
         id: params
