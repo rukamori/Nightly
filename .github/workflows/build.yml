@@ -152,7 +152,7 @@ jobs:
           ls -lh "$APK"
 
       - name: Upload APK artifact (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.params.outputs.artifact_name }}
           path: app/build/outputs/apk/${{ steps.params.outputs.apk_dir }}/nightly/${{ steps.params.outputs.apk_name }}
@@ -166,7 +166,7 @@ jobs:
       contents: write
     steps:
       - name: Download all APK artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts/
           pattern: apk-*
