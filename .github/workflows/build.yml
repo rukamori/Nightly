@@ -120,7 +120,7 @@ jobs:
       - name: Grant permissions
         run: chmod a+x gradlew
 
-      - name: Build APK (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
+      - name: Build APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
         run: ./gradlew ${{ steps.params.outputs.gradle_task }} -PnightlyVersionName=N${{ needs.check.outputs.new_tag }}
         env:
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
@@ -129,7 +129,7 @@ jobs:
           CANVAS_BEARER_TOKEN: ${{ secrets.CANVAS_BEARER_TOKEN }}
           EXTRACTOR_BEARER: ${{ secrets.EXTRACTOR_BEARER }}
 
-      - name: Sign APK (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
+      - name: Sign APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
         uses: ilharp/sign-android-release@v2.0.0
         id: sign_app
         with:
@@ -140,18 +140,18 @@ jobs:
           keyPassword: ${{ secrets.KEY_PASSWORD }}
           buildToolsVersion: 35.0.0
 
-      - name: Rename signed APK (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
+      - name: Rename signed APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
         run: |
           SIGNED_FILE="${{ steps.sign_app.outputs.signedFile }}"
           mv "$SIGNED_FILE" "$(dirname "$SIGNED_FILE")/${{ steps.params.outputs.apk_name }}"
 
-      - name: Verify signed APK (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
+      - name: Verify signed APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
         run: |
           APK="app/build/outputs/apk/${{ steps.params.outputs.apk_dir }}/nightly/${{ steps.params.outputs.apk_name }}"
           test -s "$APK"
           ls -lh "$APK"
 
-      - name: Upload APK artifact (${{ matrix.dist }}-${{ matrix.device }}-${ matrix.abi }})
+      - name: Upload APK artifact (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.params.outputs.artifact_name }}
