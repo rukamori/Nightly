@@ -115,7 +115,12 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-          cache: 'gradle'
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-cleanup: on-success
+          cache-read-only: true
 
       - name: Grant permissions
         run: chmod a+x gradlew
@@ -123,39 +128,72 @@ jobs:
       - name: Build APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
         run: ./gradlew ${{ steps.params.outputs.gradle_task }} -PnightlyVersionName=N${{ needs.check.outputs.new_tag }}
         env:
+          PULL_REQUEST: 'false'
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
           LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
           LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          API_BEARER_TOKEN: ${{ secrets.API_BEARER_TOKEN }}
           TOGETHER_BEARER_TOKEN: ${{ secrets.TOGETHER_BEARER_TOKEN }}
           CANVAS_BEARER_TOKEN: ${{ secrets.CANVAS_BEARER_TOKEN }}
           EXTRACTOR_BEARER: ${{ secrets.EXTRACTOR_BEARER }}
+          NIGHTLY_BUILD_HASH: ''
+
+      - name: Resolve release output directory
+        id: release_dir
+        run: |
+          DIST="${{ matrix.dist }}"
+          DEVICE="${{ matrix.device }}"
+          ABI="${{ matrix.abi }}"
+          DIST_LOWER=$(echo "$DIST" | tr '[:upper:]' '[:lower:]')
+          DEVICE_LOWER=$(echo "$DEVICE" | tr '[:upper:]' '[:lower:]')
+          ABI_LOWER=$(echo "$ABI" | tr '[:upper:]' '[:lower:]')
+          DEVICE_CAP="$(tr '[:lower:]' '[:upper:]' <<< "${DEVICE:0:1}")${DEVICE:1}"
+          ABI_CAP="$(tr '[:lower:]' '[:upper:]' <<< "${ABI:0:1}")${ABI:1}"
+
+          CANDIDATES=(
+            "app/build/outputs/apk/${DIST}${DEVICE_CAP}${ABI_CAP}/nightly"
+            "app/build/outputs/apk/${DIST_LOWER}${DEVICE_CAP}${ABI_CAP}/nightly"
+            "app/build/outputs/apk/${DIST_LOWER}${DEVICE_LOWER}${ABI_LOWER}/nightly"
+            "app/build/outputs/apk/${DIST}/${DEVICE}/${ABI}/nightly"
+            "app/build/outputs/apk/${DIST}${DEVICE_LOWER}${ABI_CAP}/nightly"
+            "app/build/outputs/apk/${DIST}${DEVICE_CAP}${ABI_LOWER}/nightly"
+          )
+
+          for d in "${CANDIDATES[@]}"; do
+            if [ -d "$d" ]; then
+              echo "release_dir=$d" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+
+          echo "APK output directory not found. Searching..."
+          find app/build/outputs/apk -maxdepth 5 -type d 2>/dev/null || true
+          echo "RELEASE_DIR_CANDIDATES checked: ${CANDIDATES[*]}"
+          exit 1
 
       - name: Sign APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
         uses: ilharp/sign-android-release@v2.0.0
         id: sign_app
         with:
-          releaseDir: app/build/outputs/apk/${{ steps.params.outputs.apk_dir }}/nightly
-          signingKey: ${{ secrets.SIGNING_KEY_BASE64 }}
+          releaseDir: ${{ steps.release_dir.outputs.release_dir }}
+          signingKey: ${{ secrets.KEYSTORE }}
           keyAlias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
           buildToolsVersion: 35.0.0
 
-      - name: Rename signed APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
+      - name: Move signed APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
         run: |
-          SIGNED_FILE="${{ steps.sign_app.outputs.signedFile }}"
-          mv "$SIGNED_FILE" "$(dirname "$SIGNED_FILE")/${{ steps.params.outputs.apk_name }}"
-
-      - name: Verify signed APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
-        run: |
-          APK="app/build/outputs/apk/${{ steps.params.outputs.apk_dir }}/nightly/${{ steps.params.outputs.apk_name }}"
-          test -s "$APK"
-          ls -lh "$APK"
+          RELEASE_DIR="${{ steps.release_dir.outputs.release_dir }}"
+          mkdir -p "$RELEASE_DIR/out"
+          SIGNED_APK=$(find "$RELEASE_DIR" -type f \( -name "*-signed.apk" -o -name "*-unsigned-signed.apk" \) | head -n 1)
+          mv "$SIGNED_APK" "$RELEASE_DIR/out/${{ steps.params.outputs.apk_name }}"
 
       - name: Upload APK artifact (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.params.outputs.artifact_name }}
-          path: app/build/outputs/apk/${{ steps.params.outputs.apk_dir }}/nightly/${{ steps.params.outputs.apk_name }}
+          path: ${{ steps.release_dir.outputs.release_dir }}/out/${{ steps.params.outputs.apk_name }}
           retention-days: 1
 
   release:
@@ -166,7 +204,7 @@ jobs:
       contents: write
     steps:
       - name: Download all APK artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts/
           pattern: apk-*
