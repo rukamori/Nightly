@@ -110,6 +110,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
           submodules: true
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
