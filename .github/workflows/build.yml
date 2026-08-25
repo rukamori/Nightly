@@ -57,7 +57,7 @@ jobs:
             abi: X86
           - dist: gms
             device: Mobile
-            abi: X8664
+            abi: X86_64
           - dist: gms
             device: Mobile
             abi: Universal
@@ -77,7 +77,7 @@ jobs:
             abi: X86
           - dist: foss
             device: Mobile
-            abi: X8664
+            abi: X86_64
           - dist: foss
             device: Mobile
             abi: Universal
@@ -98,7 +98,7 @@ jobs:
           ABI_LOWER=$(echo "$ABI" | tr '[:upper:]' '[:lower:]')
 
           echo "gradle_task=assemble${DIST}${DEVICE}${ABI}Nightly" >> $GITHUB_OUTPUT
-          echo "apk_dir=${DIST_LOWER}${DEVICE_LOWER}${ABI}" >> $GITHUB_OUTPUT
+          echo "apk_dir=${DIST_LOWER}${DEVICE}${ABI}" >> $GITHUB_OUTPUT
           echo "apk_name=app-${DIST_LOWER}-${DEVICE_LOWER}-${ABI_LOWER}-nightly.apk" >> $GITHUB_OUTPUT
           echo "artifact_name=apk-${DIST_LOWER}-${DEVICE_LOWER}-${ABI_LOWER}" >> $GITHUB_OUTPUT
 
