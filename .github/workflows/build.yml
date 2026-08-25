@@ -208,16 +208,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download all APK artifacts
-        uses: actions/download-artifact@v8
-        with:
-          path: artifacts/
-          pattern: apk-*
-          merge-multiple: true
-
-      - name: List downloaded artifacts
-        run: ls -lh artifacts/
-
       - name: Checkout repo for changelog
         uses: actions/checkout@v7
         with:
@@ -237,6 +227,16 @@ jobs:
             echo "$CHANGELOG"
             echo "EOF"
           } >> $GITHUB_OUTPUT
+
+      - name: Download all APK artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts/
+          pattern: apk-*
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -lh artifacts/
 
       - name: Create release
         uses: softprops/action-gh-release@v3
