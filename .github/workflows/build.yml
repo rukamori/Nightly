@@ -181,7 +181,7 @@ jobs:
         id: sign_app
         with:
           releaseDir: ${{ steps.release_dir.outputs.release_dir }}
-          signingKey: ${{ secrets.KEYSTORE }}
+          signingKey: ${{ secrets.SIGNING_KEY_BASE64 }}
           keyAlias: ${{ secrets.KEY_ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
