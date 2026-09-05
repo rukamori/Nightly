@@ -18,10 +18,9 @@ params = {
 }
 
 with open('commits.txt', 'w', encoding='utf-8') as file:
-    file.write("## What's Changed\n\n")
+    lines = []
 
     for repo in repos:
-        has_updates = False
         url = f'https://api.github.com/repos/{repo["owner"]}/{repo["name"]}/commits'
 
         if 'branch' in repo:
@@ -33,19 +32,19 @@ with open('commits.txt', 'w', encoding='utf-8') as file:
             commits = response.json()
 
             if commits:
-                file.write(f"### {repo['label']} Updates:\n")
-                has_updates = True
+                lines.append(f"### {repo['label']} Updates:\n")
 
                 for commit in commits:
                     commit_message = commit['commit']['message'].split('\n')[0]
                     commit_sha = commit['sha'][:7]
                     commit_url = commit['html_url']
 
-                    file.write(f"- {commit_message} - [`{commit_sha}`]({commit_url})\n")
+                    lines.append(f"- {commit_message} - [`{commit_sha}`]({commit_url})\n")
 
-                file.write("\n")
+                lines.append("\n")
 
-        if not has_updates:
-            file.write(f"### {repo['label']} Updates:\n- Nothing changed...\n\n")
+    if lines:
+        file.write("## What's Changed\n\n")
+        file.writelines(lines)
 
     print("✅ File created: commits.txt")
