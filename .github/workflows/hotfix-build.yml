@@ -1,0 +1,260 @@
+name: Hotfix Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.tagger.outputs.new_tag }}
+      formatted_date: ${{ steps.tagger.outputs.formatted_date }}
+    steps:
+      - name: Generate hotfix tag
+        id: tagger
+        run: |
+          TODAY=$(date +'%Y%m%d')
+
+          # Count hotfix tags already created today (peeled "^{}" entries excluded)
+          TAGS=$(git ls-remote --tags "https://github.com/${{ github.repository }}.git" "refs/tags/NFH-*-${TODAY}")
+          COUNT=$(printf '%s\n' "$TAGS" | grep 'refs/tags/NFH-' | grep -v '\^{}' | wc -l)
+
+          echo "new_tag=NFH-$((COUNT + 1))-${TODAY}" >> $GITHUB_OUTPUT
+          echo "formatted_date=$(date +'%Y/%m/%d')" >> $GITHUB_OUTPUT
+
+  build:
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # GMS Mobile - all ABIs
+          - dist: gms
+            device: Mobile
+            abi: Arm64
+          - dist: gms
+            device: Mobile
+            abi: Armeabi
+          - dist: gms
+            device: Mobile
+            abi: X86
+          - dist: gms
+            device: Mobile
+            abi: X86_64
+          - dist: gms
+            device: Mobile
+            abi: Universal
+          # GMS Tv - universal only
+          - dist: gms
+            device: Tv
+            abi: Universal
+          # FOSS Mobile - all ABIs
+          - dist: foss
+            device: Mobile
+            abi: Arm64
+          - dist: foss
+            device: Mobile
+            abi: Armeabi
+          - dist: foss
+            device: Mobile
+            abi: X86
+          - dist: foss
+            device: Mobile
+            abi: X86_64
+          - dist: foss
+            device: Mobile
+            abi: Universal
+          # FOSS Tv - universal only
+          - dist: foss
+            device: Tv
+            abi: Universal
+    steps:
+      - name: Compute build parameters
+        id: params
+        run: |
+          DIST="${{ matrix.dist }}"
+          DEVICE="${{ matrix.device }}"
+          ABI="${{ matrix.abi }}"
+
+          DIST_LOWER=$(echo "$DIST" | tr '[:upper:]' '[:lower:]')
+          DEVICE_LOWER=$(echo "$DEVICE" | tr '[:upper:]' '[:lower:]')
+          ABI_LOWER=$(echo "$ABI" | tr '[:upper:]' '[:lower:]')
+
+          echo "gradle_task=assemble${DIST}${DEVICE}${ABI}Nightly" >> $GITHUB_OUTPUT
+          echo "apk_dir=${DIST_LOWER}${DEVICE_LOWER}${ABI_LOWER}" >> $GITHUB_OUTPUT
+          echo "apk_name=app-${DIST_LOWER}-${DEVICE_LOWER}-${ABI_LOWER}-nightly.apk" >> $GITHUB_OUTPUT
+          echo "artifact_name=apk-${DIST_LOWER}-${DEVICE_LOWER}-${ABI_LOWER}" >> $GITHUB_OUTPUT
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          repository: rukamori/ArchiveTune
+          ref: dev
+          token: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
+          submodules: true
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set Up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-cleanup: on-success
+          cache-read-only: true
+
+      - name: Grant permissions
+        run: chmod a+x gradlew
+
+      - name: Build APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
+        run: ./gradlew ${{ steps.params.outputs.gradle_task }} -PnightlyVersionName=${{ needs.check.outputs.new_tag }}
+        env:
+          PULL_REQUEST: 'false'
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          API_BEARER_TOKEN: ${{ secrets.API_BEARER_TOKEN }}
+          TOGETHER_BEARER_TOKEN: ${{ secrets.TOGETHER_BEARER_TOKEN }}
+          CANVAS_BEARER_TOKEN: ${{ secrets.CANVAS_BEARER_TOKEN }}
+          EXTRACTOR_BEARER: ${{ secrets.EXTRACTOR_BEARER }}
+          NIGHTLY_BUILD_HASH: ''
+
+      - name: Resolve release output directory
+        id: release_dir
+        run: |
+          DIST="${{ matrix.dist }}"
+          DEVICE="${{ matrix.device }}"
+          ABI="${{ matrix.abi }}"
+          DIST_LOWER=$(echo "$DIST" | tr '[:upper:]' '[:lower:]')
+          DEVICE_LOWER=$(echo "$DEVICE" | tr '[:upper:]' '[:lower:]')
+          ABI_LOWER=$(echo "$ABI" | tr '[:upper:]' '[:lower:]')
+          DEVICE_CAP="$(tr '[:lower:]' '[:upper:]' <<< "${DEVICE:0:1}")${DEVICE:1}"
+          ABI_CAP="$(tr '[:lower:]' '[:upper:]' <<< "${ABI:0:1}")${ABI:1}"
+
+          CANDIDATES=(
+            "app/build/outputs/apk/${DIST}${DEVICE_CAP}${ABI_CAP}/nightly"
+            "app/build/outputs/apk/${DIST_LOWER}${DEVICE_CAP}${ABI_CAP}/nightly"
+            "app/build/outputs/apk/${DIST_LOWER}${DEVICE_LOWER}${ABI_LOWER}/nightly"
+            "app/build/outputs/apk/${DIST}/${DEVICE}/${ABI}/nightly"
+            "app/build/outputs/apk/${DIST}${DEVICE_LOWER}${ABI_CAP}/nightly"
+            "app/build/outputs/apk/${DIST}${DEVICE_CAP}${ABI_LOWER}/nightly"
+          )
+
+          for d in "${CANDIDATES[@]}"; do
+            if [ -d "$d" ]; then
+              echo "release_dir=$d" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+
+          echo "APK output directory not found. Searching..."
+          find app/build/outputs/apk -maxdepth 5 -type d 2>/dev/null || true
+          echo "RELEASE_DIR_CANDIDATES checked: ${CANDIDATES[*]}"
+          exit 1
+
+      - name: Sign APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
+        uses: ilharp/sign-android-release@v2.0.0
+        id: sign_app
+        with:
+          releaseDir: ${{ steps.release_dir.outputs.release_dir }}
+          signingKey: ${{ secrets.SIGNING_KEY_BASE64 }}
+          keyAlias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+          buildToolsVersion: 35.0.0
+
+      - name: Move signed APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
+        run: |
+          RELEASE_DIR="${{ steps.release_dir.outputs.release_dir }}"
+          mkdir -p "$RELEASE_DIR/out"
+          SIGNED_APK=$(find "$RELEASE_DIR" -type f \( -name "*-signed.apk" -o -name "*-unsigned-signed.apk" \) | head -n 1)
+          mv "$SIGNED_APK" "$RELEASE_DIR/out/${{ steps.params.outputs.apk_name }}"
+
+      - name: Upload APK artifact (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.params.outputs.artifact_name }}
+          path: ${{ steps.release_dir.outputs.release_dir }}/out/${{ steps.params.outputs.apk_name }}
+          retention-days: 1
+
+  release:
+    needs: [check, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repo for changelog
+        uses: actions/checkout@v7
+        with:
+          repository: rukamori/ArchiveTune
+          ref: dev
+          token: ${{ secrets.GITHUB_TOKEN || secrets.PAT_TOKEN }}
+          submodules: true
+
+      - name: Get changelog
+        id: changelog
+        run: |
+          curl -o commit.py -L https://raw.githubusercontent.com/${{ github.repository }}/main/.github/assets/commit.py
+          python3 commit.py
+          CHANGELOG=$(cat commits.txt)
+          {
+            echo "content<<EOF"
+            echo "$CHANGELOG"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Download all APK artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts/
+          pattern: apk-*
+          merge-multiple: true
+
+      - name: List downloaded artifacts
+        run: ls -lh artifacts/
+
+      - name: Create release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.check.outputs.new_tag }}
+          name: "${{ needs.check.outputs.new_tag }}"
+          body: |
+            Hotfix build generated on ${{ needs.check.outputs.formatted_date }}
+
+            ${{ steps.changelog.outputs.content }}
+          files: artifacts/*.apk
+          prerelease: false
+
+      - name: Send Discord notification
+        run: |
+          VERSION="${{ needs.check.outputs.new_tag }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/$VERSION"
+          MENTION_ROLE="${{ secrets.DISCORD_MENTION_ROLE }}"
+
+          MESSAGE="# Hotfix version of __ArchiveTune Nightly__ has been released.
+
+          > - A hotfix **ArchiveTune $VERSION** has been released. You can view changelog and download inside **ArchiveTune Nightly** app or with this link below.
+          > - **Link:** $RELEASE_URL
+          > - **Mention:** $MENTION_ROLE"
+
+          PAYLOAD=$(jq -n --arg msg "$MESSAGE" '{content: $msg}')
+
+          RESPONSE=$(curl -s -w "\n%{http_code}" -H "Content-Type: application/json" -d "$PAYLOAD" "${{ secrets.WEBHOOK_URL }}")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+          if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Discord notification sent successfully"
+          else
+            echo "❌ Failed to send Discord notification (HTTP $HTTP_CODE)"
+            exit 1
+          fi
