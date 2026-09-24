@@ -5,7 +5,7 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       new_tag: ${{ steps.tagger.outputs.new_tag }}
       formatted_date: ${{ steps.tagger.outputs.formatted_date }}
@@ -24,7 +24,7 @@ jobs:
 
   build:
     needs: check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     strategy:
@@ -163,15 +163,50 @@ jobs:
           exit 1
 
       - name: Sign APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
-        uses: ilharp/sign-android-release@v2.0.0
-        id: sign_app
-        with:
-          releaseDir: ${{ steps.release_dir.outputs.release_dir }}
-          signingKey: ${{ secrets.SIGNING_KEY_BASE64 }}
-          keyAlias: ${{ secrets.KEY_ALIAS }}
-          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
-          buildToolsVersion: 35.0.0
+        env:
+          RELEASE_DIR: ${{ steps.release_dir.outputs.release_dir }}
+          SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          APKSIGNER=$(find "$SDK/build-tools" -maxdepth 2 -name apksigner 2>/dev/null | sort -V | tail -n 1)
+
+          if [ -z "$APKSIGNER" ]; then
+            SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+            if [ ! -x "$SDKMANAGER" ]; then
+              echo "apksigner not found and sdkmanager unavailable under $SDK"
+              find "$SDK" -maxdepth 3 -type d 2>/dev/null | head -n 50
+              exit 1
+            fi
+            yes | "$SDKMANAGER" "build-tools;35.0.0" >/dev/null
+            APKSIGNER="$SDK/build-tools/35.0.0/apksigner"
+          fi
+
+          KEYSTORE=$(mktemp)
+          trap 'rm -f "$KEYSTORE"' EXIT
+          printf '%s' "$SIGNING_KEY_BASE64" | tr -d '\n\r' | base64 -d > "$KEYSTORE"
+
+          shopt -s nullglob
+          APKS=("$RELEASE_DIR"/*.apk)
+          if [ ${#APKS[@]} -eq 0 ]; then
+            echo "No APK found in $RELEASE_DIR"
+            ls -la "$RELEASE_DIR"
+            exit 1
+          fi
+
+          for apk in "${APKS[@]}"; do
+            "$APKSIGNER" sign \
+              --ks "$KEYSTORE" \
+              --ks-key-alias "$KEY_ALIAS" \
+              --ks-pass "pass:$KEYSTORE_PASSWORD" \
+              --key-pass "pass:$KEY_PASSWORD" \
+              --v1-signing-enabled true \
+              --v2-signing-enabled true \
+              --out "${apk%.apk}-signed.apk" \
+              "$apk"
+          done
 
       - name: Move signed APK (${{ matrix.dist }}-${{ matrix.device }}-${{ matrix.abi }})
         run: |
@@ -189,7 +224,7 @@ jobs:
 
   release:
     needs: [check, build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
