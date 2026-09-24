@@ -5,7 +5,7 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       new_tag: ${{ steps.tagger.outputs.new_tag }}
       formatted_date: ${{ steps.tagger.outputs.formatted_date }}
@@ -24,7 +24,7 @@ jobs:
 
   build:
     needs: check
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     strategy:
@@ -224,7 +224,7 @@ jobs:
 
   release:
     needs: [check, build]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     steps:

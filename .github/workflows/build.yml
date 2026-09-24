@@ -5,7 +5,7 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     outputs:
       should_build: ${{ steps.check-updates.outputs.has_changes }}
       new_tag: ${{ steps.tagger.outputs.new_tag }}
@@ -38,7 +38,7 @@ jobs:
   build:
     needs: check
     if: needs.check.outputs.should_build == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     strategy:
@@ -239,7 +239,7 @@ jobs:
   release:
     needs: [check, build]
     if: needs.check.outputs.should_build == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: write
     steps:
