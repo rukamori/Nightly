@@ -119,7 +119,7 @@ https://api.github.com/repos/${{ github.repository }}/actions/workflows/build.ym
 | `Authorization` | `Bearer YOUR_GITHUB_PAT` |
 | `Content-Type` | `application/json` |
 
-**Request menthod:**
+**Request method:**
 POST
 
 **Body:**
