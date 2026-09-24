@@ -16,10 +16,10 @@ jobs:
           TODAY=$(date +'%Y%m%d')
 
           # Count hotfix tags already created today (peeled "^{}" entries excluded)
-          TAGS=$(git ls-remote --tags "https://github.com/${{ github.repository }}.git" "refs/tags/NFH-*-${TODAY}")
-          COUNT=$(printf '%s\n' "$TAGS" | grep 'refs/tags/NFH-' | grep -v '\^{}' | wc -l)
+          TAGS=$(git ls-remote --tags "https://github.com/${{ github.repository }}.git" "refs/tags/NHF-*-${TODAY}")
+          COUNT=$(printf '%s\n' "$TAGS" | grep 'refs/tags/NHF-' | grep -v '\^{}' | wc -l)
 
-          echo "new_tag=NFH-$((COUNT + 1))-${TODAY}" >> $GITHUB_OUTPUT
+          echo "new_tag=NHF-$((COUNT + 1))-${TODAY}" >> $GITHUB_OUTPUT
           echo "formatted_date=$(date +'%Y/%m/%d')" >> $GITHUB_OUTPUT
 
   build:
